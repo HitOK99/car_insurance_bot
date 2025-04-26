@@ -15,52 +15,37 @@ MIND_API_KEY = os.getenv("MIND_API_KEY")
 
 
 def process_document(document_path):
+    """Надсилає документ до Mindee API для асинхронної обробки."""
     url = "https://api.mindee.net/v1/products/bohdan-buryhin/passport_and_vehicle_document/v1/predict_async"
     headers = {
         "Authorization": f"Token {MIND_API_KEY}",
     }
 
-    print(f"File path: {document_path}")
-
     with open(document_path, "rb") as file:
         files = {"document": file}
-
-        print(f"Headers: {headers}")
-        print(f"URL: {url}")
-
         response = requests.post(url, headers=headers, files=files)
 
         if response.status_code in [200, 202]:
-            print("Документ успішно прийнятий на обробку!")
             return response.json()
         else:
-            print("Помилка при відправці документа:", response.status_code)
-            print(f"Response text: {response.text}")
             return None
 
 
 def check_processing_status(polling_url, headers):
+    """Перевіряє статус обробки документа з паузою між запитами."""
     attempts = 0
-    while attempts < 30:
+
+    while attempts < 5:
         response = requests.get(polling_url, headers=headers)
         if response.status_code == 200:
             data = response.json()
-            print("Повна відповідь на статус чек:", data)
             inference = data.get('document', {}).get('inference', {})
             if 'finished_at' in inference:
-                print("Документ оброблено!")
                 return data
-            else:
-                print(f"Документ все ще в обробці... Спроба {attempts + 1}")
-        else:
-            print("Помилка при перевірці статусу:", response.status_code)
-            print(f"Response text: {response.text}")
-
         attempts += 1
-        time.sleep(2)  # Можеш залишити 10 секунд якщо хочеш, але для тестів краще 2
-    print("Документ не був оброблений в межах максимального часу.")
-    return None
+        time.sleep(10)  # Чекаємо перед наступною спробою, щоб уникнути помилки 429 (Too Many Requests)
 
+    return None
 
 # === СТАРТ ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -76,6 +61,7 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     vehicle_path = context.user_data.get('vehicle_path')
 
     all_data = {}
+    error_occurred = False
 
     # Обробка паспорта
     if passport_path:
@@ -88,6 +74,10 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 prediction = status_data.get('document', {}).get('inference', {}).get('prediction', {})
                 all_data['ПІБ'] = prediction.get('full_name', {}).get('value')
                 all_data['Номер паспорта'] = prediction.get('passport_number', {}).get('value')
+            else:
+                error_occurred = True
+        else:
+            error_occurred = True
 
     # Обробка техпаспорта
     if vehicle_path:
@@ -100,8 +90,20 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 prediction = status_data.get('document', {}).get('inference', {}).get('prediction', {})
                 all_data['Марка авто'] = prediction.get('car_brand', {}).get('value')
                 all_data['Номер авто'] = prediction.get('car_number', {}).get('value')
+            else:
+                error_occurred = True
+        else:
+            error_occurred = True
 
-    # Підставляємо значення за замовчанням, якщо щось не знайшли
+    if error_occurred:
+        await update.message.reply_text(
+            "⚠️ Не вдалося розпізнати дані з документів.\n"
+            "Будь ласка, надішли фото ще раз!"
+        )
+        context.user_data['state'] = 'waiting_passport'
+        return
+
+    # Якщо все добре
     extracted_data = {
         "ПІБ": all_data.get("ПІБ") or "Не вказано",
         "Номер паспорта": all_data.get("Номер паспорта") or "Не вказано",
@@ -111,7 +113,6 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data['extracted_data'] = extracted_data
 
-    # Відправка зведеної інформації на підтвердження
     text = "Я знайшов таку інформацію з документів 📄:\n\n"
     for k, v in extracted_data.items():
         text += f"{k}: {v}\n"
@@ -126,7 +127,6 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(text, reply_markup=reply_markup)
-
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -158,7 +158,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     else:
         await update.message.reply_text("Будь ласка, почніть з /start")
-
 
 
 # === ОБРОБКА НЕ ФОТО ===
