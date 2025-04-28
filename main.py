@@ -5,6 +5,7 @@ from telegram.ext import (
 )
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 import requests
 import time
 
@@ -72,7 +73,14 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             status_data = check_processing_status(polling_url, headers)
             if status_data:
                 prediction = status_data.get('document', {}).get('inference', {}).get('prediction', {})
-                all_data['ПІБ'] = prediction.get('full_name', {}).get('value')
+
+                full_name = prediction.get('full_name', {}).get('value')
+                if not full_name:
+                    given_names = prediction.get('given_names', {}).get('value', '')
+                    surname = prediction.get('surname', {}).get('value', '')
+                    full_name = f"{given_names} {surname}".strip()
+
+                all_data['ПІБ'] = full_name
                 all_data['Номер паспорта'] = prediction.get('passport_number', {}).get('value')
             else:
                 error_occurred = True
@@ -171,17 +179,18 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === ГЕНЕРАЦІЯ ПОЛІСУ ===
 async def generate_policy(extracted_data):
+    current_date = datetime.now().strftime("%d.%m.%Y")  # Формат дати: 28.04.2025
+
     return (
         f"🔒 *Страховий поліс №CAR-{extracted_data['Номер авто'].replace(' ', '')}*\n\n"
         f"👤 *ПІБ:* {extracted_data['ПІБ']}\n"
         f"🪪 *Паспорт:* {extracted_data['Номер паспорта']}\n"
         f"🚗 *Автомобіль:* {extracted_data['Марка авто']} ({extracted_data['Номер авто']})\n"
         f"💵 *Сума страхування:* 100 USD\n"
-        f"📅 *Дата оформлення:* 25 квітня 2025\n\n"
+        f"📅 *Дата оформлення:* {current_date}\n\n"
         "✅ Поліс дійсний і буде надісланий вам на email після оплати.\n"
         "_(Це тестова версія полісу, згенерована без OpenAI)_"
     )
-
 
 # === CALLBACK ОБРОБКА ===
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
