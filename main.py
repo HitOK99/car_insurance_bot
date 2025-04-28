@@ -15,9 +15,12 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 MIND_API_KEY = os.getenv("MIND_API_KEY")
 
 
-def process_document(document_path):
+def process_document(document_path, is_passport=False):
     """Надсилає документ до Mindee API для асинхронної обробки."""
-    url = "https://api.mindee.net/v1/products/bohdan-buryhin/passport_and_vehicle_document/v1/predict_async"
+    if is_passport:
+        url = "https://api.mindee.net/v1/products/mindee/passport/v1/predict"
+    else:
+        url = "https://api.mindee.net/v1/products/bohdan-buryhin/passport_and_vehicle_document/v1/predict_async"
     headers = {
         "Authorization": f"Token {MIND_API_KEY}",
     }
@@ -31,7 +34,6 @@ def process_document(document_path):
         else:
             return None
 
-
 def check_processing_status(polling_url, headers):
     """Перевіряє статус обробки документа з паузою між запитами."""
     attempts = 0
@@ -44,7 +46,7 @@ def check_processing_status(polling_url, headers):
             if 'finished_at' in inference:
                 return data
         attempts += 1
-        time.sleep(10)  # Чекаємо перед наступною спробою, щоб уникнути помилки 429 (Too Many Requests)
+        time.sleep(10)
 
     return None
 
@@ -66,24 +68,18 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Обробка паспорта
     if passport_path:
-        result_passport = process_document(passport_path)
+        result_passport = process_document(passport_path, is_passport=True)
         if result_passport:
-            polling_url = result_passport['job']['polling_url']
-            headers = {"Authorization": f"Token {MIND_API_KEY}"}
-            status_data = check_processing_status(polling_url, headers)
-            if status_data:
-                prediction = status_data.get('document', {}).get('inference', {}).get('prediction', {})
+            prediction = result_passport.get('document', {}).get('inference', {}).get('prediction', {})
 
-                full_name = prediction.get('full_name', {}).get('value')
-                if not full_name:
-                    given_names = prediction.get('given_names', {}).get('value', '')
-                    surname = prediction.get('surname', {}).get('value', '')
-                    full_name = f"{given_names} {surname}".strip()
+            full_name = prediction.get('full_name', {}).get('value')
+            if not full_name:
+                given_names = prediction.get('given_names', {}).get('value', '')
+                surname = prediction.get('surname', {}).get('value', '')
+                full_name = f"{given_names} {surname}".strip()
 
-                all_data['ПІБ'] = full_name
-                all_data['Номер паспорта'] = prediction.get('passport_number', {}).get('value')
-            else:
-                error_occurred = True
+            all_data['ПІБ'] = full_name
+            all_data['Номер паспорта'] = prediction.get('passport_number', {}).get('value')
         else:
             error_occurred = True
 
@@ -111,7 +107,6 @@ async def extract_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['state'] = 'waiting_passport'
         return
 
-    # Якщо все добре
     extracted_data = {
         "ПІБ": all_data.get("ПІБ") or "Не вказано",
         "Номер паспорта": all_data.get("Номер паспорта") or "Не вказано",
