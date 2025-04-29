@@ -163,11 +163,54 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === ОБРОБКА НЕ ФОТО ===
 async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "⚠️ Будь ласка, надішли документ *як фото*, а не як файл, текст чи щось інше.\n"
-        "Використай 📎 і вибери *Галерея* або *Камера*.",
-        parse_mode="Markdown"
-    )
+    """Обробка текстових повідомлень та інших форматів, окрім фото."""
+
+    # Якщо користувач надіслав файл (document)
+    if update.message.document:
+        await update.message.reply_text(
+            "⚠️ Будь ласка, надішли документ *як фото*, а не як файл.\n"
+            "Використай 📎 і вибери *Галерея* або *Камера*.",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Якщо користувач надіслав відео
+    if update.message.video:
+        await update.message.reply_text(
+            "⚠️ Відео не підтримується. Надішли фото документа.",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Якщо користувач надіслав текст, передаємо його в AI
+    user_text = update.message.text
+    await update.message.chat.send_action(action="typing")  # Бот показує "набирає..."
+
+    ai_response = hf_generate_text(f"Ти — бот автострахування. Відповідай на запитання користувачів: {user_text}")
+
+    await update.message.reply_text(ai_response)
+
+def hf_generate_text(prompt):
+    """Відправляє запит до Hugging Face API та отримує відповідь від AI."""
+    HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 200,
+            "return_full_text": False
+        }
+    }
+
+    response = requests.post(HF_API_URL, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        return response.json()[0]['generated_text']
+    else:
+        return "⚠️ Вибач, не зміг отримати відповідь від AI. Спробуй ще раз."
 
 
 # === ГЕНЕРАЦІЯ ПОЛІСУ ===
