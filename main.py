@@ -191,25 +191,25 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(ai_response)
 
 def hf_generate_text(prompt):
-    """Відправляє запит до Hugging Face API та отримує відповідь від AI."""
+    """Використовує модель Flan-T5-XL на Hugging Face."""
     HF_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-xl"
     headers = {
         "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
         "Content-Type": "application/json"
     }
     payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 200,
-            "return_full_text": False
-        }
+        "inputs": prompt
     }
 
     response = requests.post(HF_API_URL, headers=headers, json=payload)
 
     if response.status_code == 200:
-        return response.json()[0]['generated_text']
+        try:
+            return response.json()[0]['generated_text']
+        except KeyError:
+            return response.json()[0].get('output', '⚠️ Не вдалося отримати відповідь.')
     else:
+        print("Hugging Face error:", response.status_code, response.text)
         return "⚠️ Вибач, не зміг отримати відповідь від AI. Спробуй ще раз."
 
 # === ГЕНЕРАЦІЯ ПОЛІСУ ===
