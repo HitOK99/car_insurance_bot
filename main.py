@@ -196,42 +196,39 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{user_text}"
         )
 
-        ai_response = hf_generate_text(prompt)
+        ai_response = generate_text_openrouter(prompt)
         await message.reply_text(ai_response)
 
 
-def hf_generate_text(prompt: str) -> str:
-    """Використовує Hugging Face API для генерації відповіді від AI."""
-    HF_API_URL = "https://api-inference.huggingface.co/models/TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+def generate_text_openrouter(prompt: str) -> str:
+    """Генерація відповіді через OpenRouter (LLaMA 3 8B)."""
     headers = {
-        "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://yourproject.com"  # Можна будь-що або залишити
     }
+
     payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 200,
-            "return_full_text": False
-        }
+        "model": "meta-llama/llama-3-8b-instruct",  # Назва моделі
+        "messages": [
+            {"role": "system", "content": "Ти — бот, що спеціалізується на автострахуванні."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 300
     }
 
     try:
-        response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=30)
-
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
         if response.status_code == 200:
             data = response.json()
-            # Уточнення формату відповіді
-            if isinstance(data, list) and len(data) > 0 and "generated_text" in data[0]:
-                return data[0]["generated_text"].strip()
-            else:
-                return "⚠️ AI не повернув очікувану відповідь."
+            return data["choices"][0]["message"]["content"].strip()
         else:
-            print("Hugging Face API помилка:", response.status_code, response.text)
-            return "⚠️ Від AI надійшла помилка. Спробуй пізніше."
-
+            print("OpenRouter помилка:", response.status_code, response.text)
+            return "⚠️ Помилка від AI. Спробуй пізніше."
     except Exception as e:
-        print("Помилка при зверненні до Hugging Face:", str(e))
-        return "⚠️ Виникла помилка з AI-запитом. Спробуй знову."
+        print("OpenRouter виняток:", str(e))
+        return "⚠️ Виникла помилка при зверненні до OpenRouter."
 
 
 # === ГЕНЕРАЦІЯ ПОЛІСУ ===
