@@ -190,11 +190,7 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.chat.send_action(action="typing")  # Показує "друкує..."
 
         # Створюємо промпт для AI
-        prompt = (
-            "Ти — бот, що спеціалізується на автострахуванні. "
-            "Користувач звернувся з наступним запитанням:\n\n"
-            f"{user_text}"
-        )
+        prompt = f"{user_text}"
 
         ai_response = generate_text_openrouter(prompt)
         await message.reply_text(ai_response)
@@ -211,7 +207,7 @@ def generate_text_openrouter(prompt: str) -> str:
     payload = {
         "model": "meta-llama/llama-3-8b-instruct",  # Назва моделі
         "messages": [
-            {"role": "system", "content": "Ти — бот, що спеціалізується на автострахуванні."},
+            {"role": "system", "content": "Ти — бот автострахування. Відповідай коротко на запитання користувача українською мовою."},
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.7,
