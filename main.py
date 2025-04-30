@@ -191,15 +191,15 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(ai_response)
 
 def hf_generate_text(prompt):
-    HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+    HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
     headers = {
         "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
         "Content-Type": "application/json"
     }
     payload = {
-        "inputs": f"[INST] {prompt} [/INST]",
+        "inputs": prompt,
         "parameters": {
-            "max_new_tokens": 150,
+            "max_new_tokens": 100,
             "temperature": 0.7
         }
     }
