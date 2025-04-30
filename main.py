@@ -191,17 +191,16 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(ai_response)
 
 def hf_generate_text(prompt):
-    """Надсилає запит до Hugging Face API з моделлю DistilGPT-2."""
-    HF_API_URL = "https://api-inference.huggingface.co/models/distilgpt2"
+    HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
     headers = {
         "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
         "Content-Type": "application/json"
     }
     payload = {
-        "inputs": prompt,
+        "inputs": f"[INST] {prompt} [/INST]",
         "parameters": {
-            "max_new_tokens": 200,
-            "return_full_text": False
+            "max_new_tokens": 150,
+            "temperature": 0.7
         }
     }
 
@@ -210,7 +209,6 @@ def hf_generate_text(prompt):
 
         if response.status_code == 200:
             data = response.json()
-            print("✅ Відповідь API:", data)
             if isinstance(data, list) and "generated_text" in data[0]:
                 return data[0]["generated_text"]
             else:
@@ -222,7 +220,7 @@ def hf_generate_text(prompt):
 
     except Exception as e:
         print("Виняток:", str(e))
-        return "⚠️ Виникла помилка з API-запитом. Спробуй знову."
+        return "⚠️ Виникла помилка з AI. Спробуй пізніше."
 
 
 # === ГЕНЕРАЦІЯ ПОЛІСУ ===
