@@ -191,7 +191,7 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(ai_response)
 
 def hf_generate_text(prompt):
-    HF_API_URL = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
+    HF_API_URL = "https://api-inference.huggingface.co/models/TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     headers = {
         "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
         "Content-Type": "application/json"
@@ -199,8 +199,8 @@ def hf_generate_text(prompt):
     payload = {
         "inputs": prompt,
         "parameters": {
-            "max_new_tokens": 100,
-            "temperature": 0.7
+            "max_new_tokens": 200,
+            "return_full_text": False
         }
     }
 
@@ -213,8 +213,6 @@ def hf_generate_text(prompt):
                 return data[0]["generated_text"]
             else:
                 return "⚠️ AI не повернув очікувану відповідь."
-        elif response.status_code == 503:
-            return "⚠️ Модель спить або тимчасово недоступна. Спробуй ще раз за 30 секунд."
         else:
             print("Статус:", response.status_code)
             print("Повідомлення:", response.text)
@@ -222,7 +220,7 @@ def hf_generate_text(prompt):
 
     except Exception as e:
         print("Виняток:", str(e))
-        return "⚠️ Виникла помилка з AI. Спробуй пізніше."
+        return "⚠️ Виникла помилка з API-запитом. Спробуй знову."
 
 
 # === ГЕНЕРАЦІЯ ПОЛІСУ ===
