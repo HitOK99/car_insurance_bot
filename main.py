@@ -165,9 +165,11 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обробка текстових повідомлень та інших форматів, окрім фото."""
 
+    message = update.message
+
     # Якщо користувач надіслав файл (document)
-    if update.message.document:
-        await update.message.reply_text(
+    if message.document:
+        await message.reply_text(
             "⚠️ Будь ласка, надішли документ *як фото*, а не як файл.\n"
             "Використай 📎 і вибери *Галерея* або *Камера*.",
             parse_mode="Markdown"
@@ -175,22 +177,31 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Якщо користувач надіслав відео
-    if update.message.video:
-        await update.message.reply_text(
+    if message.video:
+        await message.reply_text(
             "⚠️ Відео не підтримується. Надішли фото документа.",
             parse_mode="Markdown"
         )
         return
 
-    # Якщо користувач надіслав текст, передаємо його в AI
-    user_text = update.message.text
-    await update.message.chat.send_action(action="typing")  # Бот показує "набирає..."
+    # Якщо користувач надіслав текст — обробляємо через AI
+    if message.text:
+        user_text = message.text
+        await message.chat.send_action(action="typing")  # Показує "друкує..."
 
-    ai_response = hf_generate_text(f"Ти — бот автострахування. Відповідай на запитання користувачів: {user_text}")
+        # Створюємо промпт для AI
+        prompt = (
+            "Ти — бот, що спеціалізується на автострахуванні. "
+            "Користувач звернувся з наступним запитанням:\n\n"
+            f"{user_text}"
+        )
 
-    await update.message.reply_text(ai_response)
+        ai_response = hf_generate_text(prompt)
+        await message.reply_text(ai_response)
 
-def hf_generate_text(prompt):
+
+def hf_generate_text(prompt: str) -> str:
+    """Використовує Hugging Face API для генерації відповіді від AI."""
     HF_API_URL = "https://api-inference.huggingface.co/models/TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     headers = {
         "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
@@ -209,18 +220,18 @@ def hf_generate_text(prompt):
 
         if response.status_code == 200:
             data = response.json()
-            if isinstance(data, list) and "generated_text" in data[0]:
-                return data[0]["generated_text"]
+            # Уточнення формату відповіді
+            if isinstance(data, list) and len(data) > 0 and "generated_text" in data[0]:
+                return data[0]["generated_text"].strip()
             else:
                 return "⚠️ AI не повернув очікувану відповідь."
         else:
-            print("Статус:", response.status_code)
-            print("Повідомлення:", response.text)
-            return "⚠️ Сталася помилка при зверненні до AI. Спробуй пізніше."
+            print("Hugging Face API помилка:", response.status_code, response.text)
+            return "⚠️ Від AI надійшла помилка. Спробуй пізніше."
 
     except Exception as e:
-        print("Виняток:", str(e))
-        return "⚠️ Виникла помилка з API-запитом. Спробуй знову."
+        print("Помилка при зверненні до Hugging Face:", str(e))
+        return "⚠️ Виникла помилка з AI-запитом. Спробуй знову."
 
 
 # === ГЕНЕРАЦІЯ ПОЛІСУ ===
