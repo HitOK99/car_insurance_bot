@@ -191,7 +191,7 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(ai_response)
 
 def hf_generate_text(prompt):
-    HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+    HF_API_URL = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
     headers = {
         "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
         "Content-Type": "application/json"
@@ -213,6 +213,8 @@ def hf_generate_text(prompt):
                 return data[0]["generated_text"]
             else:
                 return "⚠️ AI не повернув очікувану відповідь."
+        elif response.status_code == 503:
+            return "⚠️ Модель спить або тимчасово недоступна. Спробуй ще раз за 30 секунд."
         else:
             print("Статус:", response.status_code)
             print("Повідомлення:", response.text)
