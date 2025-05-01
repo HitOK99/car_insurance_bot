@@ -207,7 +207,8 @@ def generate_text_openrouter(prompt: str) -> str:
     payload = {
         "model": "meta-llama/llama-3-8b-instruct",  # Назва моделі
         "messages": [
-            {"role": "system", "content": "Ти — бот автострахування. Відповідай коротко на запитання користувача українською мовою."},
+            {"role": "system",
+             "content": "Ти — бот автострахування. Відповідай коротко та по суті, лише на задане запитання, українською мовою. Не додавай зайвих фраз чи питань у кінці."},
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.7,
