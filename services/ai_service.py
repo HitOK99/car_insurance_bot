@@ -22,7 +22,9 @@ def generate_text_openrouter(prompt: str) -> str:
     try:
         response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
         if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"].strip()
+            content = response.json()["choices"][0]["message"]["content"].strip()
+            content += "\n\nЯкщо у вас запитань більше немає, очікую від вас фото документів."
+            return content
         else:
             return "⚠️ Помилка від AI. Спробуй пізніше."
     except Exception:
