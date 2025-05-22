@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 # === Надсилання документів ===
 def process_document(document_path):
     """Надсилає документ до Mindee API для асинхронної обробки."""
-    url = "https://api.mindee.net/v1/products/bohdan-buryhin/passport_and_vehicle_document/v1/predict_async"
+    url = "https://api.mindee.net/v1/products/BOhdan2/passport_and_vehicle_document/v1/predict_async"
     headers = {"Authorization": f"Token {MIND_API_KEY}"}
     with open(document_path, "rb") as file:
         files = {"document": file}
